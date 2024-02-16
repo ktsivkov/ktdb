@@ -4,24 +4,24 @@ import (
 	"errors"
 
 	"ktdb/pkg/data"
-	"ktdb/pkg/payload"
 )
 
 type ColMock byte
 
-func (c ColMock) TypeName() string {
+func (c ColMock) TypeName(_ int) string {
 	return "col_mock"
 }
 
-func (c ColMock) Marshal() (payload.Payload, error) {
+func (c ColMock) Marshal(size int) ([]byte, error) {
 	if c == 0x00 {
 		return nil, errors.New("error")
 	}
-
-	return []byte{byte(c)}, nil
+	res := make([]byte, size)
+	copy(res, []byte{byte(c)})
+	return res, nil
 }
 
-func (c ColMock) Unmarshal(payload payload.Payload) (data.Column, error) {
+func (c ColMock) Unmarshal(_ int, payload []byte) (data.Column, error) {
 	if len(payload) != 1 {
 		return nil, errors.New("error")
 	}

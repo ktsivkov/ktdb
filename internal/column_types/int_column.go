@@ -2,64 +2,67 @@ package column_types
 
 import (
 	"encoding/binary"
+	"fmt"
+	"math"
 
 	"github.com/pkg/errors"
 
 	"ktdb/pkg/data"
-	"ktdb/pkg/payload"
-	"ktdb/pkg/sys"
 )
 
 // Int is a structure that is to represent column type Int, the size of the payload is based on the system architecture.
-// Supported architectures of int size 16, 32, 64
+// Supported architectures of int size 16, 32, 64 bit size
 type Int int
 
-func (i Int) TypeName() string {
-	return "int"
+func (i Int) TypeName(size int) string {
+	return fmt.Sprintf("int[size=%d]", size)
 }
 
-func (i Int) Marshal() (payload.Payload, error) {
-	res := make(payload.Payload, sys.IntByteSize)
-	if sys.IntByteSize == 2 {
+func (i Int) Marshal(size int) ([]byte, error) {
+	res := make([]byte, size)
+	if size == 2 {
+		if i < math.MinInt16 || i > math.MaxInt16 {
+			return nil, errors.Errorf("(%s) number [int=%d] out of range", i.TypeName(size), i)
+		}
 		binary.LittleEndian.PutUint16(res, uint16(i))
-		return payload.New(res)
+		return res, nil
 	}
 
-	if sys.IntByteSize == 4 {
+	if size == 4 {
+		if i < math.MinInt32 || i > math.MaxInt32 {
+			return nil, errors.Errorf("(%s) number [int=%d] out of range", i.TypeName(size), i)
+		}
 		binary.LittleEndian.PutUint32(res, uint32(i))
-		return payload.New(res)
+		return res, nil
 	}
 
-	if sys.IntByteSize == 8 {
+	if size == 8 {
+		if i < math.MinInt64 || i > math.MaxInt64 {
+			return nil, errors.Errorf("(%s) number [int=%d] out of range", i.TypeName(size), i)
+		}
 		binary.LittleEndian.PutUint64(res, uint64(i))
-		return payload.New(res)
+		return res, nil
 	}
 
-	return nil, errors.Errorf("unknown int byte size (%d) detected", sys.IntByteSize)
+	return nil, errors.Errorf("(%s) unsupported size", i.TypeName(size))
 }
 
-func (i Int) Unmarshal(payload payload.Payload) (data.Column, error) {
-	var err error
-	payload, _, err = payload.Read()
-	if err != nil {
-		return nil, errors.Wrapf(err, "(%s) could not read payload", i.TypeName())
+func (i Int) Unmarshal(size int, payload []byte) (data.Column, error) {
+	if ps := len(payload); ps != size {
+		return nil, errors.Errorf("(%s) payload byte size [size=%d] exceeds allocated size", i.TypeName(size), ps)
 	}
 
-	if ps := len(payload); ps != sys.IntByteSize {
-		return nil, errors.Errorf("(%s) payload byte count mismatch", i.TypeName())
-	}
-
-	if sys.IntByteSize == 2 {
+	if size == 2 {
 		return Int(binary.LittleEndian.Uint16(payload)), nil
 	}
 
-	if sys.IntByteSize == 4 {
+	if size == 4 {
 		return Int(binary.LittleEndian.Uint32(payload)), nil
 	}
 
-	if sys.IntByteSize == 8 {
+	if size == 8 {
 		return Int(binary.LittleEndian.Uint64(payload)), nil
 	}
 
-	return nil, errors.Errorf("(%s) unknown int byte size detected", i.TypeName())
+	return nil, errors.Errorf("(%s) unsupported size", i.TypeName(size))
 }

@@ -4,22 +4,20 @@ import (
 	"reflect"
 
 	"github.com/pkg/errors"
-
-	"ktdb/pkg/payload"
 )
 
 type Column interface {
-	Unmarshal(payload payload.Payload) (Column, error)
-	Marshal() (payload.Payload, error)
-	TypeName() string
+	Unmarshal(size int, payload []byte) (Column, error)
+	Marshal(size int) ([]byte, error)
+	TypeName(size int) string
 }
 
-func ColumnFromType(columnType reflect.Type, payload payload.Payload) (Column, error) {
+func ColumnFromType(columnType reflect.Type, size int, payload []byte) (Column, error) {
 	if ct := reflect.TypeOf(new(Column)); columnType.Implements(ct.Elem()) == false {
 		return nil, errors.Errorf("invalid column type [%s]", columnType.String())
 	}
 
-	res, err := reflect.New(columnType).Interface().(Column).Unmarshal(payload)
+	res, err := reflect.New(columnType).Interface().(Column).Unmarshal(size, payload)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot parse column")
 	}

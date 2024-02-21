@@ -1,14 +1,37 @@
-package grid
+package data
 
 import (
 	"github.com/pkg/errors"
 
-	"ktdb/pkg/data"
+	"ktdb/pkg/sys"
 )
 
-type RowSchema struct {
-	rowSize       int
-	columnSchemas []*ColumnSchema
+func LoadRowSchemaFromBytes(payload []byte, typeLoader TypeLoaderFunc) (*RowSchema, error) {
+	columnPayloads, err := sys.ReadAll(payload)
+	if err != nil {
+		return nil, errors.Wrapf(err, "deserialization failed")
+	}
+	totalColumnPayloads := len(columnPayloads) - 1 // Subtract one since first element is always the row size
+	if totalColumnPayloads < 0 {
+		return nil, errors.New("corrupted payload")
+	}
+	rowSchema := &RowSchema{
+		columnSchemas: make([]*ColumnSchema, totalColumnPayloads),
+	}
+
+	rowSchema.rowSize, err = sys.BytesAsInt(columnPayloads[0])
+	if err != nil {
+		return nil, errors.Wrap(err, "loading row size failed")
+	}
+
+	for i := range totalColumnPayloads {
+		rowSchema.columnSchemas[i], err = LoadColumnSchemaFromBytes(columnPayloads[i+1], typeLoader)
+		if err != nil {
+			return nil, errors.Errorf("(row=[column_position=%d]) loading column schema", i)
+		}
+	}
+
+	return rowSchema, nil
 }
 
 func NewRowSchema(columnSchemas []*ColumnSchema) (*RowSchema, error) {
@@ -47,8 +70,27 @@ func NewRowSchema(columnSchemas []*ColumnSchema) (*RowSchema, error) {
 	}, nil
 }
 
-func (s *RowSchema) Prepare(columns map[string]data.Column) ([]data.Column, error) {
-	res := make([]data.Column, len(s.columnSchemas))
+type RowSchema struct {
+	columnSchemas []*ColumnSchema
+	rowSize       int
+}
+
+func (s *RowSchema) Bytes() ([]byte, error) {
+	colSchemaBytes := make([][]byte, len(s.columnSchemas)+1)
+	colSchemaBytes[0] = sys.New(sys.IntAsBytes(s.rowSize))
+	for i, colSchema := range s.columnSchemas {
+		colBytes, err := colSchema.Bytes()
+		if err != nil {
+			return nil, errors.Wrapf(err, "(row=[column_position=%d, column_name=%s]) could not get bytes of the schema", i, colSchema.Name)
+		}
+		colSchemaBytes[i+1] = sys.New(colBytes)
+	}
+
+	return sys.ConcatSlices(colSchemaBytes...), nil
+}
+
+func (s *RowSchema) Prepare(columns map[string]Column) ([]Column, error) {
+	res := make([]Column, len(s.columnSchemas))
 	for i, schema := range s.columnSchemas {
 		col, found := columns[schema.Name]
 		if found == false {
@@ -63,7 +105,7 @@ func (s *RowSchema) Prepare(columns map[string]data.Column) ([]data.Column, erro
 	return res, nil
 }
 
-func (s *RowSchema) Row(cols []data.Column) (Row, error) {
+func (s *RowSchema) Row(cols []Column) (Row, error) {
 	if givenCols, schemaCols := len(cols), len(s.columnSchemas); givenCols != schemaCols {
 		return nil, errors.Errorf("expected columns [size=%d], got [size=%d]", givenCols, schemaCols)
 	}
@@ -83,12 +125,12 @@ func (s *RowSchema) Row(cols []data.Column) (Row, error) {
 	return row, nil
 }
 
-func (s *RowSchema) Columns(row Row) ([]data.Column, error) {
+func (s *RowSchema) Columns(row Row) ([]Column, error) {
 	if rowSize := len(row); rowSize != s.rowSize {
 		return nil, errors.Errorf("expected row of size [bytes=%d], got [bytes=%d]", s.rowSize, rowSize)
 	}
 
-	res := make([]data.Column, len(s.columnSchemas))
+	res := make([]Column, len(s.columnSchemas))
 	startAt := 0
 	endAt := 0
 	for i, colSchema := range s.columnSchemas {

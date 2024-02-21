@@ -12,13 +12,17 @@ import (
 
 type Varchar string
 
-func (v Varchar) TypeName(size int) string {
-	return fmt.Sprintf("varchar[size=%d]", size)
+func (v Varchar) Identifier() string {
+	return "varchar"
+}
+
+func (v Varchar) Type(size int) string {
+	return fmt.Sprintf("%s[size=%d]", v.Identifier(), size)
 }
 
 func (v Varchar) Unmarshal(size int, payload []byte) (data.Column, error) {
 	if utf8.Valid(payload) == false {
-		return nil, errors.Errorf("(%s) payload bytes are not valid UTF-8", v.TypeName(size))
+		return nil, errors.Errorf("(%s) payload bytes are not valid UTF-8", v.Type(size))
 	}
 
 	return Varchar(sys.RemovePadding(payload)), nil
@@ -27,7 +31,7 @@ func (v Varchar) Unmarshal(size int, payload []byte) (data.Column, error) {
 func (v Varchar) Marshal(size int) ([]byte, error) {
 	payload := []byte(v)
 	if len(payload) > size {
-		return nil, errors.Errorf("(%s) data exceeds maximum size", v.TypeName(size))
+		return nil, errors.Errorf("(%s) data exceeds maximum size", v.Type(size))
 	}
 
 	return sys.AddPadding(payload, size)

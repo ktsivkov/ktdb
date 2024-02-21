@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"ktdb/internal/column_types"
+	"ktdb/pkg/column_types"
 )
 
 func TestVarchar_Marshal(t *testing.T) {

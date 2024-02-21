@@ -7,13 +7,14 @@ import (
 )
 
 type Column interface {
-	Unmarshal(size int, payload []byte) (Column, error)
+	Identifier() string
+	Type(size int) string
 	Marshal(size int) ([]byte, error)
-	TypeName(size int) string
+	Unmarshal(size int, payload []byte) (Column, error)
 }
 
 func ColumnFromType(columnType reflect.Type, size int, payload []byte) (Column, error) {
-	if ct := reflect.TypeOf(new(Column)); columnType.Implements(ct.Elem()) == false {
+	if columnType.Implements(reflect.TypeOf(new(Column)).Elem()) == false {
 		return nil, errors.Errorf("invalid column type [%s]", columnType.String())
 	}
 

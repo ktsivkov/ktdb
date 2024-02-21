@@ -5,58 +5,83 @@ import (
 	"log"
 	"reflect"
 
-	"ktdb/internal/column_types"
-	"ktdb/internal/table"
+	column_types2 "ktdb/pkg/column_types"
 	"ktdb/pkg/data"
 )
 
 func main() {
-	rowSchema := table.RowSchema{
-		{
-			Name: "username",
-			Type: reflect.TypeOf(column_types.Str("")),
-			Rules: []table.ColumnRuleFunc{
-				table.WithNotNullValueRule(),
-			},
-		},
-		{
-			Name:    "age",
-			Type:    reflect.TypeOf(column_types.Int(0)),
-			Default: column_types.Int(18),
-			Rules: []table.ColumnRuleFunc{
-				table.WithNotNullValueRule(),
-			},
-		},
-		{
-			Name:  "country",
-			Type:  reflect.TypeOf(column_types.Str("")),
-			Rules: []table.ColumnRuleFunc{},
-		},
+	types, err := data.NewTypes([]reflect.Type{
+		reflect.TypeOf(column_types2.Varchar("")),
+		reflect.TypeOf(column_types2.Int(0)),
+	})
+	if err != nil {
+		log.Fatal(err)
 	}
-
-	row, err := rowSchema.Row(map[string]data.Column{"username": column_types.Str("ktsivkov"), "country": nil})
+	sc := data.ColumnSchema{
+		Name:       "username",
+		ColumnSize: 255,
+		Nullable:   false,
+		Default:    column_types2.Varchar("ktsivkov"),
+		Type:       reflect.TypeOf(column_types2.Varchar("")),
+	}
+	schemaBytes, err := sc.Bytes()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	tbl := table.Table{
-		Name:      "users",
-		RowSchema: rowSchema,
-	}
-	tbl.Append(row)
-
-	bytes, err := tbl.Bytes()
+	loaded, err := data.LoadColumnSchemaFromBytes(schemaBytes, types.Get)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	tbl2 := table.Table{
-		Name:      "users",
-		RowSchema: rowSchema,
+	fmt.Println("schema", sc)
+	fmt.Println("schema exported bytes", schemaBytes)
+	fmt.Println("restored schema", loaded)
+	return
+
+	schema, err := data.NewRowSchema([]*data.ColumnSchema{
+		{
+			Name:       "username",
+			ColumnSize: 32,
+			Nullable:   false,
+			Default:    nil,
+			Type:       reflect.TypeOf(column_types2.Varchar("")),
+		},
+		{
+			Name:       "age",
+			ColumnSize: 8,
+			Nullable:   false,
+			Default:    nil,
+			Type:       reflect.TypeOf(column_types2.Int(0)),
+		},
+		{
+			Name:       "signature",
+			ColumnSize: 32,
+			Nullable:   false,
+			Default:    column_types2.Varchar("no signature yet"),
+			Type:       reflect.TypeOf(column_types2.Varchar("")),
+		},
+	})
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	fmt.Println(tbl2.Load(bytes))
+	prepared, err := schema.Prepare(map[string]data.Column{
+		"username": column_types2.Varchar("ktsivkov"),
+		"age":      column_types2.Int(18),
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	col, err := tbl2.Rows[0].Get("country")
-	fmt.Println(col == nil)
+	fmt.Println("prepared", prepared)
+	res, err := schema.Row(prepared)
+	if err != nil {
+		log.Fatal(err)
+	}
+	cols, err := schema.Columns(res)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(cols)
 }

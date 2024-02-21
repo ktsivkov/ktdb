@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"ktdb/internal/column_types"
+	"ktdb/pkg/column_types"
 	"ktdb/pkg/sys"
 )
 

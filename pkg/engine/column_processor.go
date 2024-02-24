@@ -4,37 +4,35 @@ import (
 	"reflect"
 
 	"github.com/pkg/errors"
-
-	"ktdb/pkg/data"
 )
 
 type ColumnProcessor interface {
-	ReflectionType(identifier string) (reflect.Type, error)
-	FromReflectionType(columnType reflect.Type, size int, payload []byte) (data.Column, error)
+	FromType(typeIdentifier string, size int, payload []byte) (Column, error)
 }
 
 func NewColumnProcessor(types []reflect.Type) (ColumnProcessor, error) {
-	t := &columnProcessor{
+	p := &columnProcessor{
 		types: make(map[string]reflect.Type, len(types)),
 	}
 	for _, typ := range types {
-		if err := t.register(typ); err != nil {
+		if err := p.register(typ); err != nil {
 			return nil, errors.Wrap(err, "type registration failed")
 		}
 	}
-	return t, nil
+	return p, nil
 }
 
 type columnProcessor struct {
 	types map[string]reflect.Type
 }
 
-func (p *columnProcessor) FromReflectionType(columnType reflect.Type, size int, payload []byte) (data.Column, error) {
-	if columnType.Implements(reflect.TypeOf(new(data.Column)).Elem()) == false {
-		return nil, errors.Errorf("invalid column type [%s]", columnType.String())
+func (p *columnProcessor) FromType(typeIdentifier string, size int, payload []byte) (Column, error) {
+	columnType, err := p.get(typeIdentifier)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to get reflection type")
 	}
 
-	res, err := reflect.New(columnType).Interface().(data.Column).Unmarshal(size, payload)
+	res, err := reflect.New(columnType).Interface().(Column).Unmarshal(size, payload)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot parse column")
 	}
@@ -42,10 +40,10 @@ func (p *columnProcessor) FromReflectionType(columnType reflect.Type, size int, 
 	return res, nil
 }
 
-func (p *columnProcessor) ReflectionType(identifier string) (reflect.Type, error) {
-	typ, found := p.types[identifier]
+func (p *columnProcessor) get(typeIdentifier string) (reflect.Type, error) {
+	typ, found := p.types[typeIdentifier]
 	if !found {
-		return nil, errors.Errorf("(type=[identifier=%s]) not found", identifier)
+		return nil, errors.Errorf("(type=[identifier=%s]) not found", typeIdentifier)
 	}
 
 	return typ, nil
@@ -56,11 +54,11 @@ func (p *columnProcessor) register(typ reflect.Type) error {
 		return errors.Errorf("(type=[type=%s]) is not a valid type", "nil")
 	}
 
-	if ct := reflect.TypeOf(new(data.Column)).Elem(); typ.Implements(ct) == false {
+	if ct := reflect.TypeOf(new(Column)).Elem(); typ.Implements(ct) == false {
 		return errors.Errorf("(type=[type=%s]) does not implement [type=%s]", typ.String(), ct.String())
 	}
 
-	identifier := reflect.New(typ).Interface().(data.Column).Identifier()
+	identifier := reflect.New(typ).Interface().(Column).TypeIdentifier()
 	if identifier == "" {
 		return errors.Errorf("(type=[type=%s]) invalid identifier", typ.String())
 	}
@@ -70,6 +68,6 @@ func (p *columnProcessor) register(typ reflect.Type) error {
 		return errors.Errorf("(type=[type=%s, identifier=%s]) identifier already used", typ.String(), identifier)
 	}
 
-	p.types[reflect.New(typ).Interface().(data.Column).Identifier()] = typ
+	p.types[reflect.New(typ).Interface().(Column).TypeIdentifier()] = typ
 	return nil
 }

@@ -1,10 +1,11 @@
 package data
 
 import (
-	"reflect"
+	"unicode/utf8"
 
 	"github.com/pkg/errors"
 
+	"ktdb/pkg/engine"
 	"ktdb/pkg/sys"
 )
 
@@ -18,9 +19,12 @@ func LoadColumnSchemaFromBytes(processor ColumnProcessor, payload []byte) (*Colu
 		return nil, errors.New("corrupted payload")
 	}
 
-	schema.Type, err = processor.ReflectionType(string(payloads[0]))
-	if err != nil {
-		return nil, errors.Wrap(err, "loading type failed")
+	if utf8.Valid(payloads[0]) == false {
+		return nil, errors.Errorf("loading type failed")
+	}
+	schema.Type = string(payloads[0])
+	if utf8.Valid(payloads[2]) == false {
+		return nil, errors.Errorf("loading name failed")
 	}
 	schema.Name = string(payloads[2])
 	schema.ColumnSize, err = sys.BytesAsInt(payloads[3])
@@ -42,15 +46,15 @@ func LoadColumnSchemaFromBytes(processor ColumnProcessor, payload []byte) (*Colu
 }
 
 type ColumnSchema struct {
-	Type       reflect.Type
-	Default    Column
+	Type       string
+	Default    engine.Column
 	Name       string
 	ColumnSize int
 	Nullable   bool
 }
 
 func (s *ColumnSchema) Bytes() ([]byte, error) {
-	typeBytes := sys.New([]byte(reflect.New(s.Type).Interface().(Column).Identifier()))
+	typeBytes := sys.New([]byte(s.Type))
 	var defaultBytes []byte
 	if s.Default == nil {
 		defaultBytes = make([]byte, s.ByteSize())
@@ -73,21 +77,20 @@ func (s *ColumnSchema) ByteSize() int {
 	return s.ColumnSize + 1
 }
 
-func (s *ColumnSchema) Validate(column Column) error {
+func (s *ColumnSchema) ValidateColumn(column engine.Column) error {
 	if s.Nullable == false && column == nil {
 		return errors.Errorf("(column=[name=%s]) is not nullable", s.Name)
 	}
-	if colType := reflect.TypeOf(column); column != nil && colType != s.Type {
-		wantedTypeName := reflect.New(s.Type).Interface().(Column).Type(s.ColumnSize)
-		return errors.Errorf("(column=[name=%s]) given type [name=%s, type=%s] doesn't match required type [name=%s, type=%s]", s.Name, column.Type(s.ColumnSize), colType.String(), wantedTypeName, s.Type.String())
+	if column != nil && column.TypeIdentifier() != s.Type {
+		return errors.Errorf("(column=[name=%s]) given type [name=%s] doesn't match required type [name=%s]", s.Name, column.TypeIdentifier(), s.Type)
 	}
 	return nil
 }
 
-func (s *ColumnSchema) Marshal(column Column) ([]byte, error) {
+func (s *ColumnSchema) Marshal(column engine.Column) ([]byte, error) {
 	res := make([]byte, s.ByteSize())
-	if err := s.Validate(column); err != nil {
-		return nil, errors.Wrapf(err, "validation failed")
+	if err := s.ValidateColumn(column); err != nil {
+		return nil, errors.Wrapf(err, "column validation failed")
 	}
 
 	if column == nil && s.Nullable {
@@ -103,7 +106,7 @@ func (s *ColumnSchema) Marshal(column Column) ([]byte, error) {
 	return res, nil
 }
 
-func (s *ColumnSchema) Unmarshal(processor ColumnProcessor, payload []byte) (Column, error) {
+func (s *ColumnSchema) Unmarshal(processor ColumnProcessor, payload []byte) (engine.Column, error) {
 	if size, expected := len(payload), s.ByteSize(); size != expected {
 		return nil, errors.Errorf("(column=[name=%s]) corrupted data, payload size [size=%d] differs than the expected [size=%d]", s.Name, size, expected)
 	}
@@ -115,7 +118,7 @@ func (s *ColumnSchema) Unmarshal(processor ColumnProcessor, payload []byte) (Col
 		return nil, errors.Errorf("(column=[name=%s]) corrupted data, cannot assign null on a not-nullable column", s.Name)
 	}
 
-	res, err := processor.FromReflectionType(s.Type, s.ColumnSize, payload[1:]) // Skip first byte since it is just a nullable flag
+	res, err := processor.FromType(s.Type, s.ColumnSize, payload[1:]) // Skip first byte since it is just a nullable flag
 	if err != nil {
 		return nil, errors.Wrapf(err, "(column=[name=%s]) unmarshal failed", s.Name)
 	}

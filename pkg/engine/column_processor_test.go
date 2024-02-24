@@ -44,52 +44,39 @@ func TestNewColumnProcessor(t *testing.T) {
 			res, err := engine.NewColumnProcessor([]reflect.Type{
 				reflect.TypeOf(""),
 			})
-			assert.EqualError(t, err, "type registration failed: (type=[type=string]) does not implement [type=data.Column]")
+			assert.EqualError(t, err, "type registration failed: (type=[type=string]) does not implement [type=engine.Column]")
 			assert.Nil(t, res)
 		})
 	})
 }
 
-func TestTypes_ReflectionType(t *testing.T) {
+func TestColumnProcessor_FromType(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		cm := ColMock{}
 		types, _ := engine.NewColumnProcessor([]reflect.Type{
-			reflect.TypeOf(cm),
+			reflect.TypeOf(ColMock{}),
 		})
-		res, err := types.ReflectionType(cm.Identifier())
-		assert.NoError(t, err)
-		assert.Equal(t, reflect.TypeOf(cm), res)
-	})
-	t.Run("fail", func(t *testing.T) {
-		types, _ := engine.NewColumnProcessor([]reflect.Type{})
-		res, err := types.ReflectionType("not-existent")
-		assert.EqualError(t, err, "(type=[identifier=not-existent]) not found")
-		assert.Nil(t, res)
-	})
-}
-
-func TestColumnProcessor_FromReflectionType(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		types, _ := engine.NewColumnProcessor([]reflect.Type{})
 		given := []byte{0xFF}
 		expected := &ColMock{}
 
-		res, err := types.FromReflectionType(reflect.TypeOf(ColMock{}), 1, given)
+		res, err := types.FromType(ColMock{}.TypeIdentifier(), 1, given)
 
 		assert.NoError(t, err)
 		assert.Equal(t, expected, res)
 	})
 
-	t.Run("fail - type mismatch", func(t *testing.T) {
-		types, _ := engine.NewColumnProcessor([]reflect.Type{})
-		given := reflect.TypeOf(interface{}(""))
-		_, err := types.FromReflectionType(given, 1, make([]byte, 0))
-		assert.EqualError(t, err, "invalid column type [string]")
+	t.Run("fail - invalid payload", func(t *testing.T) {
+		types, _ := engine.NewColumnProcessor([]reflect.Type{
+			reflect.TypeOf(ColMock{}),
+		})
+		_, err := types.FromType(ColMock{}.TypeIdentifier(), 1, nil)
+		assert.EqualError(t, err, "cannot parse column: error")
 	})
 
-	t.Run("fail - invalid payload", func(t *testing.T) {
-		types, _ := engine.NewColumnProcessor([]reflect.Type{})
-		_, err := types.FromReflectionType(reflect.TypeOf(InvalidColMock{}), 1, nil)
-		assert.EqualError(t, err, "cannot parse column: error")
+	t.Run("fail - invalid type", func(t *testing.T) {
+		types, _ := engine.NewColumnProcessor([]reflect.Type{
+			reflect.TypeOf(ColMock{}),
+		})
+		_, err := types.FromType(InvalidColMock{}.TypeIdentifier(), 1, nil)
+		assert.EqualError(t, err, "unable to get reflection type: (type=[identifier=]) not found")
 	})
 }

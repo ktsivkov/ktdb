@@ -7,19 +7,19 @@ import (
 
 	"github.com/pkg/errors"
 
-	"ktdb/pkg/data"
+	"ktdb/pkg/engine"
 )
 
 // Int is a structure that is to represent column type Int, the size of the payload is based on the system architecture.
 // Supported architectures of int size 16, 32, 64 bit size
 type Int int
 
-func (i Int) Identifier() string {
+func (i Int) TypeIdentifier() string {
 	return "int"
 }
 
 func (i Int) Type(size int) string {
-	return fmt.Sprintf("%s[size=%d]", i.Identifier(), size)
+	return fmt.Sprintf("%s[size=%d]", i.TypeIdentifier(), size)
 }
 
 func (i Int) Marshal(size int) ([]byte, error) {
@@ -51,7 +51,7 @@ func (i Int) Marshal(size int) ([]byte, error) {
 	return nil, errors.Errorf("(%s) unsupported size", i.Type(size))
 }
 
-func (i Int) Unmarshal(size int, payload []byte) (data.Column, error) {
+func (i Int) Unmarshal(size int, payload []byte) (engine.Column, error) {
 	if ps := len(payload); ps != size {
 		return nil, errors.Errorf("(%s) payload byte size [size=%d] exceeds allocated size", i.Type(size), ps)
 	}

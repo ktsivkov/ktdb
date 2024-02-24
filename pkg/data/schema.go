@@ -3,6 +3,7 @@ package data
 import (
 	"github.com/pkg/errors"
 
+	"ktdb/pkg/engine"
 	"ktdb/pkg/sys"
 )
 
@@ -51,12 +52,12 @@ func NewRowSchema(columnSchemas []*ColumnSchema) (*RowSchema, error) {
 		}
 		cols[colSchema.Name] = struct{}{}
 
-		if colSchema.Type == nil {
+		if colSchema.Type == "" {
 			return nil, errors.Errorf("(row=[column_position=%d, column_name=%s]) is missing a type", i, colSchema.Name)
 		}
 
 		if colSchema.Default != nil {
-			if err := colSchema.Validate(colSchema.Default); err != nil {
+			if err := colSchema.ValidateColumn(colSchema.Default); err != nil {
 				return nil, errors.Wrapf(err, "(row=[column_position=%d, column_name=%s]) default value validation failed", i, colSchema.Name)
 			}
 		}
@@ -89,14 +90,14 @@ func (s *RowSchema) Bytes() ([]byte, error) {
 	return sys.ConcatSlices(colSchemaBytes...), nil
 }
 
-func (s *RowSchema) Prepare(columns map[string]Column) ([]Column, error) {
-	res := make([]Column, len(s.columnSchemas))
+func (s *RowSchema) Prepare(columns map[string]engine.Column) ([]engine.Column, error) {
+	res := make([]engine.Column, len(s.columnSchemas))
 	for i, schema := range s.columnSchemas {
 		col, found := columns[schema.Name]
 		if found == false {
 			col = schema.Default
 		}
-		if err := schema.Validate(col); err != nil {
+		if err := schema.ValidateColumn(col); err != nil {
 			return nil, errors.Wrapf(err, "validation failed")
 		}
 		res[i] = col
@@ -105,7 +106,7 @@ func (s *RowSchema) Prepare(columns map[string]Column) ([]Column, error) {
 	return res, nil
 }
 
-func (s *RowSchema) Row(cols []Column) (Row, error) {
+func (s *RowSchema) Row(cols []engine.Column) (Row, error) {
 	if givenCols, schemaCols := len(cols), len(s.columnSchemas); givenCols != schemaCols {
 		return nil, errors.Errorf("expected columns [size=%d], got [size=%d]", givenCols, schemaCols)
 	}
@@ -125,12 +126,12 @@ func (s *RowSchema) Row(cols []Column) (Row, error) {
 	return row, nil
 }
 
-func (s *RowSchema) Columns(processor ColumnProcessor, row Row) ([]Column, error) {
+func (s *RowSchema) Columns(processor ColumnProcessor, row Row) ([]engine.Column, error) {
 	if rowSize := len(row); rowSize != s.rowSize {
 		return nil, errors.Errorf("expected row of size [bytes=%d], got [bytes=%d]", s.rowSize, rowSize)
 	}
 
-	res := make([]Column, len(s.columnSchemas))
+	res := make([]engine.Column, len(s.columnSchemas))
 	startAt := 0
 	endAt := 0
 	for i, colSchema := range s.columnSchemas {

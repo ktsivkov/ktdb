@@ -8,7 +8,7 @@ import (
 	"ktdb/pkg/sys"
 )
 
-func LoadColumnSchemaFromBytes(payload []byte, typeLoader TypeLoaderFunc) (*ColumnSchema, error) {
+func LoadColumnSchemaFromBytes(processor ColumnProcessor, payload []byte) (*ColumnSchema, error) {
 	schema := &ColumnSchema{}
 	payloads, err := sys.ReadAll(payload)
 	if err != nil {
@@ -18,7 +18,7 @@ func LoadColumnSchemaFromBytes(payload []byte, typeLoader TypeLoaderFunc) (*Colu
 		return nil, errors.New("corrupted payload")
 	}
 
-	schema.Type, err = typeLoader(string(payloads[0]))
+	schema.Type, err = processor.ReflectionType(string(payloads[0]))
 	if err != nil {
 		return nil, errors.Wrap(err, "loading type failed")
 	}
@@ -32,7 +32,7 @@ func LoadColumnSchemaFromBytes(payload []byte, typeLoader TypeLoaderFunc) (*Colu
 		return nil, errors.Wrap(err, "loading nullable failed")
 	}
 	if payloads[1][0] == 0xFF { // 0xFF is the not-nullable flag
-		schema.Default, err = schema.Unmarshal(payloads[1]) // // The default value should be unmarshalled last since it depends on the previous values
+		schema.Default, err = schema.Unmarshal(processor, payloads[1]) // // The default value should be unmarshalled last since it depends on the previous values
 		if err != nil {
 			return nil, errors.Wrap(err, "unmarshalling default value failed")
 		}
@@ -103,7 +103,7 @@ func (s *ColumnSchema) Marshal(column Column) ([]byte, error) {
 	return res, nil
 }
 
-func (s *ColumnSchema) Unmarshal(payload []byte) (Column, error) {
+func (s *ColumnSchema) Unmarshal(processor ColumnProcessor, payload []byte) (Column, error) {
 	if size, expected := len(payload), s.ByteSize(); size != expected {
 		return nil, errors.Errorf("(column=[name=%s]) corrupted data, payload size [size=%d] differs than the expected [size=%d]", s.Name, size, expected)
 	}
@@ -115,7 +115,7 @@ func (s *ColumnSchema) Unmarshal(payload []byte) (Column, error) {
 		return nil, errors.Errorf("(column=[name=%s]) corrupted data, cannot assign null on a not-nullable column", s.Name)
 	}
 
-	res, err := ColumnFromType(s.Type, s.ColumnSize, payload[1:]) // Skip first byte since it is just a nullable flag
+	res, err := processor.FromReflectionType(s.Type, s.ColumnSize, payload[1:]) // Skip first byte since it is just a nullable flag
 	if err != nil {
 		return nil, errors.Wrapf(err, "(column=[name=%s]) unmarshal failed", s.Name)
 	}

@@ -24,9 +24,9 @@ func TestRowSchema_Bytes__and__LoadRowSchemaFromBytes(t *testing.T) {
 			assert.NoError(t, err)
 			bytes, err := original.Bytes()
 			assert.NoError(t, err)
-			res, err := data.LoadRowSchemaFromBytes(bytes, func(string) (reflect.Type, error) {
-				return reflect.TypeOf(ColMock(0x00)), nil
-			})
+			processorMock := &ColumnProcessorMock{}
+			processorMock.On("ReflectionType", ColMock(0x00).Type(0)).Return(reflect.TypeOf(ColMock(0x00)), nil)
+			res, err := data.LoadRowSchemaFromBytes(processorMock, bytes)
 			assert.NoError(t, err)
 			assert.Equal(t, original, res)
 		})
@@ -35,16 +35,16 @@ func TestRowSchema_Bytes__and__LoadRowSchemaFromBytes(t *testing.T) {
 			assert.NoError(t, err)
 			bytes, err := original.Bytes()
 			assert.NoError(t, err)
-			res, err := data.LoadRowSchemaFromBytes(bytes, func(string) (reflect.Type, error) {
-				return nil, nil
-			})
+			processorMock := &ColumnProcessorMock{}
+			processorMock.On("ReflectionType", ColMock(0x00).Type(0)).Return(nil, nil)
+			res, err := data.LoadRowSchemaFromBytes(processorMock, bytes)
 			assert.NoError(t, err)
 			assert.Equal(t, original, res)
 		})
 		t.Run("restore from empty payload", func(t *testing.T) {
-			res, err := data.LoadRowSchemaFromBytes([]byte{}, func(string) (reflect.Type, error) {
-				return nil, nil
-			})
+			processorMock := &ColumnProcessorMock{}
+			processorMock.On("ReflectionType", ColMock(0x00).Type(0)).Return(nil, nil)
+			res, err := data.LoadRowSchemaFromBytes(processorMock, []byte{})
 			assert.EqualError(t, err, "corrupted payload")
 			assert.Nil(t, res)
 		})
@@ -231,7 +231,10 @@ func TestRowSchema_Row(t *testing.T) {
 func TestRowSchema_Columns(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		schema := getRowSchema()
-		res, err := schema.Columns(data.Row{
+		processorMock := &ColumnProcessorMock{}
+		processorMock.On("ReflectionType", ColMock(0x00).Type(0)).Return(reflect.TypeOf(ColMock(0x00)), nil)
+		processorMock.On("FromReflectionType", reflect.TypeOf(ColMock(0x00)), 1, []byte{0xFF}).Return(ColMock(0xFF), nil)
+		res, err := schema.Columns(processorMock, data.Row{
 			// NullFlag, Value
 			0xFF, 0xFF,
 			0x00, 0x00,
@@ -248,13 +251,16 @@ func TestRowSchema_Columns(t *testing.T) {
 	t.Run("fail", func(t *testing.T) {
 		t.Run("wrong size of row", func(t *testing.T) {
 			schema := getRowSchema()
-			res, err := schema.Columns(nil)
+			processorMock := &ColumnProcessorMock{}
+			res, err := schema.Columns(processorMock, nil)
 			assert.EqualError(t, err, "expected row of size [bytes=6], got [bytes=0]")
 			assert.Nil(t, res)
 		})
 		t.Run("unmarshal error", func(t *testing.T) {
+			processorMock := &ColumnProcessorMock{}
+			processorMock.On("ReflectionType", ColMock(0x00).Type(0)).Return(nil, nil)
 			schema := getRowSchema()
-			res, err := schema.Columns(data.Row{
+			res, err := schema.Columns(processorMock, data.Row{
 				// NullFlag, Value
 				0x00, 0x00,
 				0x00, 0x00,

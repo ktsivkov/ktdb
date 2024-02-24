@@ -6,7 +6,7 @@ import (
 	"ktdb/pkg/sys"
 )
 
-func LoadRowSchemaFromBytes(payload []byte, typeLoader TypeLoaderFunc) (*RowSchema, error) {
+func LoadRowSchemaFromBytes(processor ColumnProcessor, payload []byte) (*RowSchema, error) {
 	columnPayloads, err := sys.ReadAll(payload)
 	if err != nil {
 		return nil, errors.Wrapf(err, "deserialization failed")
@@ -25,7 +25,7 @@ func LoadRowSchemaFromBytes(payload []byte, typeLoader TypeLoaderFunc) (*RowSche
 	}
 
 	for i := range totalColumnPayloads {
-		rowSchema.columnSchemas[i], err = LoadColumnSchemaFromBytes(columnPayloads[i+1], typeLoader)
+		rowSchema.columnSchemas[i], err = LoadColumnSchemaFromBytes(processor, columnPayloads[i+1])
 		if err != nil {
 			return nil, errors.Errorf("(row=[column_position=%d]) loading column schema", i)
 		}
@@ -125,7 +125,7 @@ func (s *RowSchema) Row(cols []Column) (Row, error) {
 	return row, nil
 }
 
-func (s *RowSchema) Columns(row Row) ([]Column, error) {
+func (s *RowSchema) Columns(processor ColumnProcessor, row Row) ([]Column, error) {
 	if rowSize := len(row); rowSize != s.rowSize {
 		return nil, errors.Errorf("expected row of size [bytes=%d], got [bytes=%d]", s.rowSize, rowSize)
 	}
@@ -135,7 +135,7 @@ func (s *RowSchema) Columns(row Row) ([]Column, error) {
 	endAt := 0
 	for i, colSchema := range s.columnSchemas {
 		endAt += colSchema.ByteSize()
-		col, err := colSchema.Unmarshal(row[startAt:endAt])
+		col, err := colSchema.Unmarshal(processor, row[startAt:endAt])
 		if err != nil {
 			return nil, errors.Wrap(err, "failed unmarshalling column")
 		}

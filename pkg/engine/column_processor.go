@@ -8,12 +8,13 @@ import (
 	"ktdb/pkg/data"
 )
 
-type ColumnProcessor struct {
-	types map[string]reflect.Type
+type ColumnProcessor interface {
+	ReflectionType(identifier string) (reflect.Type, error)
+	FromReflectionType(columnType reflect.Type, size int, payload []byte) (data.Column, error)
 }
 
-func NewColumnProcessor(types []reflect.Type) (*ColumnProcessor, error) {
-	t := &ColumnProcessor{
+func NewColumnProcessor(types []reflect.Type) (ColumnProcessor, error) {
+	t := &columnProcessor{
 		types: make(map[string]reflect.Type, len(types)),
 	}
 	for _, typ := range types {
@@ -24,7 +25,11 @@ func NewColumnProcessor(types []reflect.Type) (*ColumnProcessor, error) {
 	return t, nil
 }
 
-func (p *ColumnProcessor) FromReflectionType(columnType reflect.Type, size int, payload []byte) (data.Column, error) {
+type columnProcessor struct {
+	types map[string]reflect.Type
+}
+
+func (p *columnProcessor) FromReflectionType(columnType reflect.Type, size int, payload []byte) (data.Column, error) {
 	if columnType.Implements(reflect.TypeOf(new(data.Column)).Elem()) == false {
 		return nil, errors.Errorf("invalid column type [%s]", columnType.String())
 	}
@@ -37,7 +42,7 @@ func (p *ColumnProcessor) FromReflectionType(columnType reflect.Type, size int, 
 	return res, nil
 }
 
-func (p *ColumnProcessor) ReflectionType(identifier string) (reflect.Type, error) {
+func (p *columnProcessor) ReflectionType(identifier string) (reflect.Type, error) {
 	typ, found := p.types[identifier]
 	if !found {
 		return nil, errors.Errorf("(type=[identifier=%s]) not found", identifier)
@@ -46,7 +51,7 @@ func (p *ColumnProcessor) ReflectionType(identifier string) (reflect.Type, error
 	return typ, nil
 }
 
-func (p *ColumnProcessor) register(typ reflect.Type) error {
+func (p *columnProcessor) register(typ reflect.Type) error {
 	if typ == nil {
 		return errors.Errorf("(type=[type=%s]) is not a valid type", "nil")
 	}

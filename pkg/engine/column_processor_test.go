@@ -12,10 +12,10 @@ import (
 func TestNewColumnProcessor(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		res, err := engine.NewColumnProcessor([]reflect.Type{
-			reflect.TypeOf(ColMock(0x00)),
+			reflect.TypeOf(ColMock{}),
 		})
 		assert.NoError(t, err)
-		assert.IsType(t, &engine.ColumnProcessor{}, res)
+		assert.Implements(t, new(engine.ColumnProcessor), res)
 	})
 	t.Run("fail", func(t *testing.T) {
 		t.Run("empty identifier", func(t *testing.T) {
@@ -27,8 +27,8 @@ func TestNewColumnProcessor(t *testing.T) {
 		})
 		t.Run("already registered identifier", func(t *testing.T) {
 			res, err := engine.NewColumnProcessor([]reflect.Type{
-				reflect.TypeOf(ColMock(0x00)),
-				reflect.TypeOf(ColMock(0x00)),
+				reflect.TypeOf(ColMock{}),
+				reflect.TypeOf(ColMock{}),
 			})
 			assert.EqualError(t, err, "type registration failed: (type=[type=engine_test.ColMock, identifier=col_mock]) identifier already used")
 			assert.Nil(t, res)
@@ -50,9 +50,9 @@ func TestNewColumnProcessor(t *testing.T) {
 	})
 }
 
-func TestTypes_Get(t *testing.T) {
+func TestTypes_ReflectionType(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		cm := ColMock(0x00)
+		cm := ColMock{}
 		types, _ := engine.NewColumnProcessor([]reflect.Type{
 			reflect.TypeOf(cm),
 		})
@@ -68,13 +68,13 @@ func TestTypes_Get(t *testing.T) {
 	})
 }
 
-func TestColumnProcessor_FromType(t *testing.T) {
+func TestColumnProcessor_FromReflectionType(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		types, _ := engine.NewColumnProcessor([]reflect.Type{})
-		given := []byte{0x01}
-		expected := ColMock(0x01)
+		given := []byte{0xFF}
+		expected := &ColMock{}
 
-		res, err := types.FromReflectionType(reflect.TypeOf(ColMock(0)), 1, given)
+		res, err := types.FromReflectionType(reflect.TypeOf(ColMock{}), 1, given)
 
 		assert.NoError(t, err)
 		assert.Equal(t, expected, res)
@@ -89,7 +89,7 @@ func TestColumnProcessor_FromType(t *testing.T) {
 
 	t.Run("fail - invalid payload", func(t *testing.T) {
 		types, _ := engine.NewColumnProcessor([]reflect.Type{})
-		_, err := types.FromReflectionType(reflect.TypeOf(ColMock(0x00)), 1, nil)
+		_, err := types.FromReflectionType(reflect.TypeOf(InvalidColMock{}), 1, nil)
 		assert.EqualError(t, err, "cannot parse column: error")
 	})
 }

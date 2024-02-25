@@ -22,7 +22,7 @@ func LoadColumnSchemaFromBytes(processor ColumnProcessor, payload []byte) (*Colu
 	if utf8.Valid(payloads[0]) == false {
 		return nil, errors.Errorf("loading type failed")
 	}
-	schema.Type = string(payloads[0])
+	schema.Type = engine.ColumnType(payloads[0])
 	if utf8.Valid(payloads[2]) == false {
 		return nil, errors.Errorf("loading name failed")
 	}
@@ -46,7 +46,7 @@ func LoadColumnSchemaFromBytes(processor ColumnProcessor, payload []byte) (*Colu
 }
 
 type ColumnSchema struct {
-	Type       string
+	Type       engine.ColumnType
 	Default    engine.Column
 	Name       string
 	ColumnSize int
@@ -81,8 +81,8 @@ func (s *ColumnSchema) ValidateColumn(column engine.Column) error {
 	if s.Nullable == false && column == nil {
 		return errors.Errorf("(column=[name=%s]) is not nullable", s.Name)
 	}
-	if column != nil && column.TypeIdentifier() != s.Type {
-		return errors.Errorf("(column=[name=%s]) given type [name=%s] doesn't match required type [name=%s]", s.Name, column.TypeIdentifier(), s.Type)
+	if column != nil && column.Type() != s.Type {
+		return errors.Errorf("(column=[name=%s]) given type [name=%s] doesn't match required type [name=%s]", s.Name, column.Type(), s.Type)
 	}
 	return nil
 }
@@ -97,7 +97,7 @@ func (s *ColumnSchema) Marshal(column engine.Column) ([]byte, error) {
 		return res, nil
 	}
 	res[0] = 0xFF // Indicates the column is not null
-	bytes, err := column.Marshal(s.ColumnSize)
+	bytes, err := column.Bytes(s.ColumnSize)
 	if err != nil {
 		return nil, errors.Wrapf(err, "(column=[name=%s]) marshal failed", s.Name)
 	}

@@ -1,7 +1,6 @@
 package column_types
 
 import (
-	"fmt"
 	"unicode/utf8"
 
 	"github.com/pkg/errors"
@@ -10,28 +9,32 @@ import (
 	"ktdb/pkg/sys"
 )
 
-type Varchar string
+const TypeVarchar engine.ColumnType = "varchar"
 
-func (v Varchar) TypeIdentifier() string {
-	return "varchar"
+type VarcharProcessor struct{}
+
+func (v *VarcharProcessor) Type() engine.ColumnType {
+	return TypeVarchar
 }
 
-func (v Varchar) Type(size int) string {
-	return fmt.Sprintf("%s[size=%d]", v.TypeIdentifier(), size)
-}
-
-func (v Varchar) Unmarshal(size int, payload []byte) (engine.Column, error) {
+func (v *VarcharProcessor) Load(size int, payload []byte) (engine.Column, error) {
 	if utf8.Valid(payload) == false {
-		return nil, errors.Errorf("(%s) payload bytes are not valid UTF-8", v.Type(size))
+		return nil, errors.Errorf("(%s) payload bytes are not valid UTF-8", v.Type().Format(size))
 	}
 
 	return Varchar(sys.RemovePadding(payload)), nil
 }
 
-func (v Varchar) Marshal(size int) ([]byte, error) {
+type Varchar string
+
+func (v Varchar) Type() engine.ColumnType {
+	return TypeVarchar
+}
+
+func (v Varchar) Bytes(size int) ([]byte, error) {
 	payload := []byte(v)
 	if len(payload) > size {
-		return nil, errors.Errorf("(%s) data exceeds maximum size", v.Type(size))
+		return nil, errors.Errorf("(%s) data exceeds maximum size", v.Type().Format(size))
 	}
 
 	return sys.AddPadding(payload, size)

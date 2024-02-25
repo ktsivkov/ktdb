@@ -1,7 +1,6 @@
 package data_test
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,11 +10,12 @@ import (
 )
 
 func TestRowSchema_Bytes__and__LoadRowSchemaFromBytes(t *testing.T) {
+	colMock := &ColMock{}
 	t.Run("success", func(t *testing.T) {
 		t.Run("a non-empty row schema", func(t *testing.T) {
 			original, err := data.NewRowSchema([]*data.ColumnSchema{
 				{
-					Type:       ColMock{}.TypeIdentifier(),
+					Type:       colMock.Type(),
 					Default:    nil,
 					Name:       "test-col",
 					ColumnSize: 1,
@@ -26,7 +26,6 @@ func TestRowSchema_Bytes__and__LoadRowSchemaFromBytes(t *testing.T) {
 			bytes, err := original.Bytes()
 			assert.NoError(t, err)
 			processorMock := &ColumnProcessorMock{}
-			processorMock.On("ReflectionType", ColMock{}.Type(0)).Return(reflect.TypeOf(ColMock{}), nil)
 			res, err := data.LoadRowSchemaFromBytes(processorMock, bytes)
 			assert.NoError(t, err)
 			assert.Equal(t, original, res)
@@ -37,14 +36,12 @@ func TestRowSchema_Bytes__and__LoadRowSchemaFromBytes(t *testing.T) {
 			bytes, err := original.Bytes()
 			assert.NoError(t, err)
 			processorMock := &ColumnProcessorMock{}
-			processorMock.On("ReflectionType", ColMock{}.Type(0)).Return(nil, nil)
 			res, err := data.LoadRowSchemaFromBytes(processorMock, bytes)
 			assert.NoError(t, err)
 			assert.Equal(t, original, res)
 		})
 		t.Run("restore from empty payload", func(t *testing.T) {
 			processorMock := &ColumnProcessorMock{}
-			processorMock.On("ReflectionType", ColMock{}.Type(0)).Return(nil, nil)
 			res, err := data.LoadRowSchemaFromBytes(processorMock, []byte{})
 			assert.EqualError(t, err, "corrupted payload")
 			assert.Nil(t, res)
@@ -53,6 +50,8 @@ func TestRowSchema_Bytes__and__LoadRowSchemaFromBytes(t *testing.T) {
 }
 
 func TestNewRowSchema(t *testing.T) {
+	colMock := &ColMock{}
+	invalidColMock := &InvalidColMock{}
 	t.Run("success", func(t *testing.T) {
 		res, err := data.NewRowSchema([]*data.ColumnSchema{
 			{
@@ -60,14 +59,14 @@ func TestNewRowSchema(t *testing.T) {
 				ColumnSize: 1,
 				Nullable:   false,
 				Default:    nil,
-				Type:       ColMock{}.TypeIdentifier(),
+				Type:       colMock.Type(),
 			},
 			{
 				Name:       "test-col-2",
 				ColumnSize: 1,
 				Nullable:   false,
 				Default:    nil,
-				Type:       ColMock{}.TypeIdentifier(),
+				Type:       colMock.Type(),
 			},
 		})
 		assert.NoError(t, err)
@@ -81,14 +80,14 @@ func TestNewRowSchema(t *testing.T) {
 					ColumnSize: 1,
 					Nullable:   false,
 					Default:    nil,
-					Type:       ColMock{}.TypeIdentifier(),
+					Type:       colMock.Type(),
 				},
 				{
 					Name:       "test-col",
 					ColumnSize: 1,
 					Nullable:   false,
 					Default:    nil,
-					Type:       ColMock{}.TypeIdentifier(),
+					Type:       colMock.Type(),
 				},
 			})
 			assert.EqualError(t, err, "(row=[column_position=1, column_name=test-col]) already exists")
@@ -108,7 +107,7 @@ func TestNewRowSchema(t *testing.T) {
 					ColumnSize: 1,
 					Nullable:   false,
 					Default:    nil,
-					Type:       ColMock{}.TypeIdentifier(),
+					Type:       colMock.Type(),
 				},
 			})
 			assert.EqualError(t, err, "(row=[column_position=0]) is missing a name")
@@ -133,60 +132,61 @@ func TestNewRowSchema(t *testing.T) {
 					Name:       "test-col",
 					ColumnSize: 1,
 					Nullable:   false,
-					Default:    InvalidColMock{},
-					Type:       ColMock{}.TypeIdentifier(),
+					Default:    invalidColMock,
+					Type:       colMock.Type(),
 				},
 			})
-			assert.EqualError(t, err, "(row=[column_position=0, column_name=test-col]) default value validation failed: (column=[name=test-col]) given type [name=] doesn't match required type [name=col_mock]")
+			assert.EqualError(t, err, "(row=[column_position=0, column_name=test-col]) default value validation failed: (column=[name=test-col]) given type [name=] doesn't match required type [name=col-mock]")
 			assert.Nil(t, res)
 		})
 	})
 }
 
-func getRowSchema(typeIdentifier string, defaultVal engine.Column) *data.RowSchema {
+func getRowSchema(typ engine.ColumnType, defaultVal engine.Column) *data.RowSchema {
 	res, _ := data.NewRowSchema([]*data.ColumnSchema{
 		{
 			Name:       "test-col-1",
 			ColumnSize: 1,
 			Nullable:   false,
 			Default:    nil,
-			Type:       typeIdentifier,
+			Type:       typ,
 		},
 		{
 			Name:       "test-col-2",
 			ColumnSize: 1,
 			Nullable:   true,
 			Default:    nil,
-			Type:       typeIdentifier,
+			Type:       typ,
 		},
 		{
 			Name:       "test-col-3",
 			ColumnSize: 1,
 			Nullable:   true,
 			Default:    defaultVal,
-			Type:       typeIdentifier,
+			Type:       typ,
 		},
 	})
 	return res
 }
 
 func TestRowSchema_Prepare(t *testing.T) {
+	colMock := &ColMock{}
 	t.Run("success", func(t *testing.T) {
 		expected := []engine.Column{
-			ColMock{},
+			colMock,
 			nil,
-			ColMock{},
+			colMock,
 		}
-		schema := getRowSchema(ColMock{}.TypeIdentifier(), ColMock{})
+		schema := getRowSchema(colMock.Type(), colMock)
 		res, err := schema.Prepare(map[string]engine.Column{
-			"test-col-1": ColMock{},
+			"test-col-1": colMock,
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, expected, res)
 	})
 	t.Run("fail", func(t *testing.T) {
 		t.Run("validation fail", func(t *testing.T) {
-			schema := getRowSchema(ColMock{}.TypeIdentifier(), ColMock{})
+			schema := getRowSchema(colMock.Type(), colMock)
 			res, err := schema.Prepare(map[string]engine.Column{})
 			assert.EqualError(t, err, "validation failed: (column=[name=test-col-1]) is not nullable")
 			assert.Nil(t, res)
@@ -195,12 +195,13 @@ func TestRowSchema_Prepare(t *testing.T) {
 }
 
 func TestRowSchema_Row(t *testing.T) {
+	colMock := &ColMock{}
 	t.Run("success", func(t *testing.T) {
-		schema := getRowSchema(ColMock{}.TypeIdentifier(), ColMock{})
+		schema := getRowSchema(colMock.Type(), colMock)
 		res, err := schema.Row([]engine.Column{
-			ColMock{},
+			colMock,
 			nil,
-			ColMock{},
+			colMock,
 		})
 		assert.NoError(t, err)
 		assert.Len(t, res, schema.ByteSize())
@@ -208,17 +209,17 @@ func TestRowSchema_Row(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		t.Run("wrong column number", func(t *testing.T) {
-			schema := getRowSchema(ColMock{}.TypeIdentifier(), ColMock{})
+			schema := getRowSchema(colMock.Type(), colMock)
 			res, err := schema.Row([]engine.Column{})
 			assert.EqualError(t, err, "expected columns [size=0], got [size=3]")
 			assert.Nil(t, res)
 		})
 		t.Run("marshal error", func(t *testing.T) {
-			schema := getRowSchema(ColMock{}.TypeIdentifier(), ColMock{})
+			schema := getRowSchema(colMock.Type(), colMock)
 			res, err := schema.Row([]engine.Column{
-				ColMockMarshalFail{},
+				&ColMockBytesFail{},
 				nil,
-				ColMock{},
+				colMock,
 			})
 			assert.EqualError(t, err, "could not marshal column: (column=[name=test-col-1]) marshal failed: error")
 			assert.Nil(t, res)
@@ -227,11 +228,11 @@ func TestRowSchema_Row(t *testing.T) {
 }
 
 func TestRowSchema_Columns(t *testing.T) {
+	colMock := &ColMock{}
 	t.Run("success", func(t *testing.T) {
-		schema := getRowSchema(ColMock{}.TypeIdentifier(), ColMock{})
+		schema := getRowSchema(colMock.Type(), colMock)
 		processorMock := &ColumnProcessorMock{}
-		processorMock.On("ReflectionType", ColMock{}.Type(0)).Return(reflect.TypeOf(ColMock{}), nil)
-		processorMock.On("FromType", ColMock{}.TypeIdentifier(), 1, []byte{0xFF}).Return(ColMock{}, nil)
+		processorMock.On("FromType", colMock.Type(), 1, []byte{0xFF}).Return(colMock, nil)
 		res, err := schema.Columns(processorMock, data.Row{
 			// NullFlag, Value
 			0xFF, 0xFF,
@@ -240,15 +241,15 @@ func TestRowSchema_Columns(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, []engine.Column{
-			ColMock{},
+			colMock,
 			nil,
-			ColMock{},
+			colMock,
 		}, res)
 	})
 
 	t.Run("fail", func(t *testing.T) {
 		t.Run("wrong size of row", func(t *testing.T) {
-			schema := getRowSchema(ColMock{}.TypeIdentifier(), ColMock{})
+			schema := getRowSchema(colMock.Type(), colMock)
 			processorMock := &ColumnProcessorMock{}
 			res, err := schema.Columns(processorMock, nil)
 			assert.EqualError(t, err, "expected row of size [bytes=6], got [bytes=0]")
@@ -256,8 +257,7 @@ func TestRowSchema_Columns(t *testing.T) {
 		})
 		t.Run("unmarshal error", func(t *testing.T) {
 			processorMock := &ColumnProcessorMock{}
-			processorMock.On("ReflectionType", ColMock{}.Type(0)).Return(nil, nil)
-			schema := getRowSchema(ColMock{}.TypeIdentifier(), ColMock{})
+			schema := getRowSchema(colMock.Type(), colMock)
 			res, err := schema.Columns(processorMock, data.Row{
 				// NullFlag, Value
 				0x00, 0x00,

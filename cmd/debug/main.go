@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"reflect"
 
 	"ktdb/pkg/column_types"
 	"ktdb/pkg/data"
@@ -11,9 +10,11 @@ import (
 )
 
 func main() {
-	columnProcessor, err := engine.NewColumnProcessor([]reflect.Type{
-		reflect.TypeOf(column_types.Varchar("")),
-		reflect.TypeOf(column_types.Int(0)),
+	varcharProcessor := &column_types.VarcharProcessor{}
+	intProcessor := &column_types.IntProcessor{}
+	columnProcessor, err := engine.NewColumnProcessor([]engine.ColumnTypeProcessor{
+		varcharProcessor,
+		intProcessor,
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -25,28 +26,28 @@ func main() {
 			ColumnSize: 32,
 			Nullable:   false,
 			Default:    nil,
-			Type:       column_types.Varchar("").TypeIdentifier(),
+			Type:       varcharProcessor.Type(),
 		},
 		{
 			Name:       "age",
 			ColumnSize: 8,
 			Nullable:   false,
 			Default:    nil,
-			Type:       column_types.Int(0).TypeIdentifier(),
+			Type:       intProcessor.Type(),
 		},
 		{
 			Name:       "signature",
 			ColumnSize: 32,
 			Nullable:   false,
 			Default:    column_types.Varchar("no signature yet"),
-			Type:       column_types.Varchar("").TypeIdentifier(),
+			Type:       varcharProcessor.Type(),
 		},
 		{
 			Name:       "rating",
 			ColumnSize: 8,
 			Nullable:   true,
 			Default:    nil,
-			Type:       column_types.Int(0).TypeIdentifier(),
+			Type:       intProcessor.Type(),
 		},
 	})
 	if err != nil {

@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"ktdb/pkg/column_types"
-	"ktdb/pkg/data"
 	"ktdb/pkg/engine"
 )
 
@@ -20,7 +19,17 @@ func main() {
 		log.Fatal(err)
 	}
 
-	rowSchema, err := data.NewRowSchema([]*data.ColumnSchema{
+	columnSchemaProcessor, err := engine.NewColumnSchemaProcessor(columnProcessor)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	rowSchemaProcessor, err := engine.NewRowSchemaProcessor(columnSchemaProcessor, columnProcessor)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	rowSchema, err := rowSchemaProcessor.New([]*engine.ColumnSchema{
 		{
 			Name:       "username",
 			ColumnSize: 32,
@@ -39,7 +48,7 @@ func main() {
 			Name:       "signature",
 			ColumnSize: 32,
 			Nullable:   false,
-			Default:    column_types.Varchar("no signature yet"),
+			Default:    func() []byte { res, _ := column_types.Varchar("no signature yet").Bytes(32); return res }(),
 			Type:       varcharProcessor.Type(),
 		},
 		{
@@ -54,7 +63,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	prepared, err := rowSchema.Prepare(map[string]engine.Column{
+	prepared, err := rowSchema.Prepare(columnProcessor, map[string]engine.Column{
 		"username": column_types.Varchar("ktsivkov"),
 		"age":      column_types.Int(18),
 	})
@@ -73,7 +82,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	restoredRowSchema, err := data.LoadRowSchemaFromBytes(columnProcessor, rowSchemaBytes)
+	restoredRowSchema, err := rowSchemaProcessor.Load(rowSchemaBytes)
 	if err != nil {
 		log.Fatal(err)
 	}

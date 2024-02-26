@@ -6,18 +6,18 @@ import (
 
 	"github.com/pkg/errors"
 
-	"ktdb/pkg/engine"
+	"ktdb/pkg/engine/grid/column"
 )
 
-const TypeInt engine.ColumnType = "int"
+const TypeInt column.Type = "int"
 
 type IntProcessor struct{}
 
-func (i *IntProcessor) Type() engine.ColumnType {
+func (i *IntProcessor) Type() column.Type {
 	return TypeInt
 }
 
-func (i *IntProcessor) Load(size int, payload []byte) (engine.Column, error) {
+func (i *IntProcessor) Load(size int, payload []byte) (column.Column, error) {
 	if ps := len(payload); ps != size {
 		return nil, errors.Errorf("(%s) payload byte size [size=%d] exceeds allocated size", i.Type().Format(size), ps)
 	}
@@ -40,7 +40,7 @@ func (i *IntProcessor) Load(size int, payload []byte) (engine.Column, error) {
 // Supported architectures of int size 16, 32, 64 bit size
 type Int int
 
-func (i Int) Type() engine.ColumnType {
+func (i Int) Type() column.Type {
 	return TypeInt
 }
 

@@ -5,19 +5,19 @@ import (
 
 	"github.com/pkg/errors"
 
-	"ktdb/pkg/engine"
+	"ktdb/pkg/engine/grid/column"
 	"ktdb/pkg/sys"
 )
 
-const TypeVarchar engine.ColumnType = "varchar"
+const TypeVarchar column.Type = "varchar"
 
 type VarcharProcessor struct{}
 
-func (v *VarcharProcessor) Type() engine.ColumnType {
+func (v *VarcharProcessor) Type() column.Type {
 	return TypeVarchar
 }
 
-func (v *VarcharProcessor) Load(size int, payload []byte) (engine.Column, error) {
+func (v *VarcharProcessor) Load(size int, payload []byte) (column.Column, error) {
 	if utf8.Valid(payload) == false {
 		return nil, errors.Errorf("(%s) payload bytes are not valid UTF-8", v.Type().Format(size))
 	}
@@ -27,7 +27,7 @@ func (v *VarcharProcessor) Load(size int, payload []byte) (engine.Column, error)
 
 type Varchar string
 
-func (v Varchar) Type() engine.ColumnType {
+func (v Varchar) Type() column.Type {
 	return TypeVarchar
 }
 

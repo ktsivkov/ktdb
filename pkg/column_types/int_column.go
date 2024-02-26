@@ -17,8 +17,8 @@ func (i *IntProcessor) Type() column.Type {
 	return TypeInt
 }
 
-func (i *IntProcessor) Load(size int, payload []byte) (column.Column, error) {
-	if ps := len(payload); ps != size {
+func (i *IntProcessor) Load(size int64, payload []byte) (column.Column, error) {
+	if ps := int64(len(payload)); ps != size {
 		return nil, errors.Errorf("(%s) payload byte size [size=%d] exceeds allocated size", i.Type().Format(size), ps)
 	}
 
@@ -38,13 +38,13 @@ func (i *IntProcessor) Load(size int, payload []byte) (column.Column, error) {
 
 // Int is a structure that is to represent column type Int, the size of the payload is based on the system architecture.
 // Supported architectures of int size 16, 32, 64 bit size
-type Int int
+type Int int64
 
 func (i Int) Type() column.Type {
 	return TypeInt
 }
 
-func (i Int) Bytes(size int) ([]byte, error) {
+func (i Int) Bytes(size int64) ([]byte, error) {
 	res := make([]byte, size)
 	switch size {
 	case 2:

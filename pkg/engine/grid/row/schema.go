@@ -9,12 +9,12 @@ import (
 
 type Schema struct {
 	columnSchemas []*column.Schema
-	rowSize       int
+	rowSize       int64
 }
 
 func (s *Schema) Bytes() ([]byte, error) {
 	colSchemaBytes := make([][]byte, len(s.columnSchemas)+1)
-	colSchemaBytes[0] = sys.New(sys.IntAsBytes(s.rowSize))
+	colSchemaBytes[0] = sys.New(sys.Int64AsBytes(s.rowSize))
 	for i, colSchema := range s.columnSchemas {
 		colBytes, err := colSchema.Bytes()
 		if err != nil {
@@ -37,7 +37,7 @@ func (s *Schema) Load(payload []byte) error {
 	}
 
 	s.columnSchemas = make([]*column.Schema, totalColumnPayloads)
-	s.rowSize, err = sys.BytesAsInt(columnPayloads[0])
+	s.rowSize, err = sys.BytesAsInt64(columnPayloads[0])
 	if err != nil {
 		return errors.Wrap(err, "loading row size failed")
 	}
@@ -59,7 +59,7 @@ func (s *Schema) Row(cols []column.Column) (Row, error) {
 	}
 
 	res := make(Row, s.rowSize)
-	byteStart := 0
+	byteStart := int64(0)
 	for i, col := range cols {
 		colSchema := s.columnSchemas[i]
 		bytes, err := colSchema.ColumnBytes(col)
@@ -74,13 +74,13 @@ func (s *Schema) Row(cols []column.Column) (Row, error) {
 }
 
 func (s *Schema) Columns(processor column.Processor, row Row) ([]column.Column, error) {
-	if rowSize := len(row); rowSize != s.rowSize {
+	if rowSize := int64(len(row)); rowSize != s.rowSize {
 		return nil, errors.Errorf("expected row of size [bytes=%d], got [bytes=%d]", s.rowSize, rowSize)
 	}
 
 	res := make([]column.Column, len(s.columnSchemas))
-	startAt := 0
-	endAt := 0
+	startAt := int64(0)
+	endAt := int64(0)
 	for i, colSchema := range s.columnSchemas {
 		endAt += colSchema.PayloadSize()
 		col, err := colSchema.Column(processor, row[startAt:endAt])
@@ -94,6 +94,6 @@ func (s *Schema) Columns(processor column.Processor, row Row) ([]column.Column, 
 	return res, nil
 }
 
-func (s *Schema) ByteSize() int {
+func (s *Schema) ByteSize() int64 {
 	return s.rowSize
 }

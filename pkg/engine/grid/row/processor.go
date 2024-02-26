@@ -47,7 +47,7 @@ func (p *processor) Prepare(schema *Schema, columns map[string]column.Column) ([
 }
 
 func (p *processor) New(columnSchemas []*column.Schema) (*Schema, error) {
-	rowSize := 0
+	rowSize := int64(0)
 	cols := make(map[string]struct{})
 	for i, colSchema := range columnSchemas {
 		if colSchema == nil {

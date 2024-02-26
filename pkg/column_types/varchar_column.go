@@ -17,7 +17,11 @@ func (v *VarcharProcessor) Type() column.Type {
 	return TypeVarchar
 }
 
-func (v *VarcharProcessor) Load(size int, payload []byte) (column.Column, error) {
+func (v *VarcharProcessor) Load(size int64, payload []byte) (column.Column, error) {
+	if ps := int64(len(payload)); ps != size {
+		return nil, errors.Errorf("(%s) payload byte size [size=%d] exceeds allocated size", v.Type().Format(size), ps)
+	}
+
 	if utf8.Valid(payload) == false {
 		return nil, errors.Errorf("(%s) payload bytes are not valid UTF-8", v.Type().Format(size))
 	}
@@ -31,9 +35,9 @@ func (v Varchar) Type() column.Type {
 	return TypeVarchar
 }
 
-func (v Varchar) Bytes(size int) ([]byte, error) {
+func (v Varchar) Bytes(size int64) ([]byte, error) {
 	payload := []byte(v)
-	if len(payload) > size {
+	if int64(len(payload)) > size {
 		return nil, errors.Errorf("(%s) data exceeds maximum size", v.Type().Format(size))
 	}
 

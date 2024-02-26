@@ -8,10 +8,10 @@ import (
 )
 
 // IntByteSize represents the size of a typical int in bytes depending on the system's architecture.
-const IntByteSize = int(unsafe.Sizeof(0))
+const IntByteSize = int64(unsafe.Sizeof(0))
 
-func AddPadding(data []byte, desiredSize int) ([]byte, error) {
-	if size := len(data); size > desiredSize {
+func AddPadding(data []byte, desiredSize int64) ([]byte, error) {
+	if size := int64(len(data)); size > desiredSize {
 		return nil, errors.Errorf("data size [size=%d] exceeds desired size [desired_size=%d]", size, desiredSize)
 	}
 	res := make([]byte, desiredSize)
@@ -28,7 +28,7 @@ func RemovePadding(data []byte) []byte {
 	return data[:endIndex]
 }
 
-func IntAsBytes(i int) []byte {
+func Int64AsBytes(i int64) []byte {
 	res := make([]byte, IntByteSize)
 	switch IntByteSize {
 	case 2:
@@ -43,17 +43,17 @@ func IntAsBytes(i int) []byte {
 	return res
 }
 
-func BytesAsInt(bytes []byte) (int, error) {
-	if len(bytes) != IntByteSize {
+func BytesAsInt64(bytes []byte) (int64, error) {
+	if int64(len(bytes)) != IntByteSize {
 		return 0, errors.New("unsupported int bytes size")
 	}
 	switch IntByteSize {
 	case 2:
-		return int(binary.LittleEndian.Uint16(bytes)), nil
+		return int64(binary.LittleEndian.Uint16(bytes)), nil
 	case 4:
-		return int(binary.LittleEndian.Uint32(bytes)), nil
+		return int64(binary.LittleEndian.Uint32(bytes)), nil
 	case 8:
-		return int(binary.LittleEndian.Uint64(bytes)), nil
+		return int64(binary.LittleEndian.Uint64(bytes)), nil
 	default:
 		return 0, errors.New("unsupported system int bytes size")
 	}

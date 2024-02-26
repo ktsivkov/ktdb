@@ -13,7 +13,7 @@ import (
 
 func TestInt_Marshal(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		architectures := map[string]int{
+		architectures := map[string]int64{
 			"16 bit": 2,
 			"32 bit": 4,
 			"64 bit": 8,
@@ -52,7 +52,7 @@ func TestInt_Marshal(t *testing.T) {
 
 func TestIntProcessor_Load(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		architectures := map[string]int{
+		architectures := map[string]int64{
 			"16 bit": 2,
 			"32 bit": 4,
 			"64 bit": 8,

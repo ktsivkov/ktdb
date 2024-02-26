@@ -20,7 +20,7 @@ func (t Type) Load(payload []byte) (Type, error) {
 	return Type(payload), nil
 }
 
-func (t Type) Format(size int) string {
+func (t Type) Format(size int64) string {
 	return fmt.Sprintf("%s[size=%d]", t, size)
 }
 

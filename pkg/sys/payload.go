@@ -4,21 +4,21 @@ import (
 	"errors"
 )
 
-func Size(payload []byte) (int, error) {
-	if len(payload) < IntByteSize {
+func Size(payload []byte) (int64, error) {
+	if int64(len(payload)) < IntByteSize {
 		return 0, errors.New("payload has no size defined")
 	}
 
-	return BytesAsInt(payload[:IntByteSize])
+	return BytesAsInt64(payload[:IntByteSize])
 }
 
-func Read(payload []byte) ([]byte, int, error) {
+func Read(payload []byte) ([]byte, int64, error) {
 	size, err := Size(payload)
 	if err != nil {
 		return nil, 0, err
 	}
 	totalSize := IntByteSize + size
-	if len(payload) < totalSize {
+	if int64(len(payload)) < totalSize {
 		return nil, 0, errors.New("size of payload is larger than the payload itself")
 	}
 	return payload[IntByteSize:totalSize], totalSize, nil
@@ -39,9 +39,9 @@ func ReadAll(payload []byte) ([][]byte, error) {
 }
 
 func New(bytes []byte) []byte {
-	size := len(bytes)
+	size := int64(len(bytes))
 	res := make([]byte, IntByteSize+size)
-	copy(res, IntAsBytes(size))
+	copy(res, Int64AsBytes(size))
 	copy(res[IntByteSize:], bytes)
 	return res
 }

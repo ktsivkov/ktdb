@@ -13,7 +13,7 @@ type Schema struct {
 	Type     Type
 	Name     string
 	Default  []byte
-	Size     int
+	Size     int64
 	Nullable bool
 }
 
@@ -31,7 +31,7 @@ func (s *Schema) Bytes() ([]byte, error) {
 	typeBytes := sys.New(s.Type.Bytes())
 	defaultBytes := sys.New(s.Default)
 	nameBytes := sys.New([]byte(s.Name))
-	columnSizeBytes := sys.New(sys.IntAsBytes(s.Size))
+	columnSizeBytes := sys.New(sys.Int64AsBytes(s.Size))
 	nullableByte := sys.New(sys.BoolAsBytes(s.Nullable))
 	return sys.ConcatSlices(typeBytes, defaultBytes, nameBytes, columnSizeBytes, nullableByte), nil
 }
@@ -52,7 +52,7 @@ func (s *Schema) Load(payload []byte) error {
 		return errors.Errorf("could not load name")
 	}
 	s.Name = string(payloads[2])
-	s.Size, err = sys.BytesAsInt(payloads[3])
+	s.Size, err = sys.BytesAsInt64(payloads[3])
 	if err != nil {
 		return errors.Wrap(err, "could not load column size")
 	}
@@ -69,14 +69,14 @@ func (s *Schema) Load(payload []byte) error {
 	return nil
 }
 
-func (s *Schema) paddingSize() int {
+func (s *Schema) paddingSize() int64 {
 	if s.Nullable {
 		return 1
 	}
 	return 0
 }
 
-func (s *Schema) PayloadSize() int {
+func (s *Schema) PayloadSize() int64 {
 	if s.Nullable {
 		return s.Size + s.paddingSize()
 	}

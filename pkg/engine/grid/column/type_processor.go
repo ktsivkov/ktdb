@@ -2,5 +2,5 @@ package column
 
 type TypeProcessor interface {
 	Type() Type
-	Load(size int, payload []byte) (Column, error)
+	Load(size int64, payload []byte) (Column, error)
 }

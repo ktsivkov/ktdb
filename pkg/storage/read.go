@@ -9,6 +9,7 @@ import (
 )
 
 type Reader interface {
+	Info(filename string) (os.FileInfo, error)
 	ReadAll(filename string) ([]byte, error)
 	ReadPartials(filename string, partials []*Partial) ([][]byte, error)
 	ReadAfter(filename string, offset int64) ([]byte, error)
@@ -20,6 +21,10 @@ func NewReader() Reader {
 }
 
 type reader struct{}
+
+func (r *reader) Info(filename string) (os.FileInfo, error) {
+	return os.Stat(filename)
+}
 
 func (r *reader) ReadAll(filename string) ([]byte, error) {
 	return os.ReadFile(filename)

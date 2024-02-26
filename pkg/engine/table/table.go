@@ -11,9 +11,10 @@ import (
 
 type Table interface {
 	Schema() *row.Schema
-	Row(id int) (row.Row, error)
-	Set(id int, r row.Row) error
+	Row(id int64) (row.Row, error)
+	Set(id int64, r row.Row) error
 	Append(r row.Row) error
+	TotalRows() (int64, error)
 }
 
 type table struct {
@@ -24,19 +25,28 @@ type table struct {
 	name   string
 }
 
+func (t *table) TotalRows() (int64, error) {
+	info, err := t.reader.Info(t.dataFile())
+	if err != nil {
+		return 0, errors.Wrapf(err, "%s could not read data file info", t.logDescriptor())
+	}
+
+	return info.Size() / t.schema.ByteSize(), nil
+}
+
 func (t *table) Schema() *row.Schema {
 	return t.schema
 }
 
-func (t *table) Row(id int) (row.Row, error) {
+func (t *table) Row(id int64) (row.Row, error) {
 	if id < 1 {
 		return nil, errors.Errorf("%s invalid row=%s", t.logDescriptor(), t.rowLogDescriptor(id))
 	}
 
 	rowBytes, err := t.reader.ReadPartials(t.dataFile(), []*storage.Partial{
 		{
-			OffsetFrom: int64(t.schema.ByteSize() * (id - 1)),
-			OffsetTo:   int64(t.schema.ByteSize() * id),
+			OffsetFrom: t.schema.ByteSize() * (id - 1),
+			OffsetTo:   t.schema.ByteSize() * id,
 		},
 	})
 	if err != nil {
@@ -46,11 +56,11 @@ func (t *table) Row(id int) (row.Row, error) {
 	return rowBytes[0], nil
 }
 
-func (t *table) Set(id int, r row.Row) error {
+func (t *table) Set(id int64, r row.Row) error {
 	if id < 1 {
 		return errors.Errorf("%s invalid row=%s", t.logDescriptor(), t.rowLogDescriptor(id))
 	}
-	if err := t.writer.Offset(t.dataFile(), int64(t.schema.ByteSize()*(id-1)), r); err != nil {
+	if err := t.writer.Offset(t.dataFile(), t.schema.ByteSize()*(id-1), r); err != nil {
 		return errors.Wrapf(err, "%s could not set row=%s", t.logDescriptor(), t.rowLogDescriptor(id))
 	}
 	return nil
@@ -64,7 +74,7 @@ func (t *table) Append(r row.Row) error {
 }
 
 func (t *table) schemaFile() string {
-	return fmt.Sprintf("%s.sch", t.name)
+	return fmt.Sprintf("%s.schema", t.name)
 }
 
 func (t *table) dataFile() string {
@@ -99,7 +109,7 @@ func (t *table) create() error {
 	return nil
 }
 
-func (t *table) rowLogDescriptor(id int) string {
+func (t *table) rowLogDescriptor(id int64) string {
 	return fmt.Sprintf("[id=%d]", id)
 }
 

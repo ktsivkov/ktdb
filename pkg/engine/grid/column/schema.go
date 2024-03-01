@@ -19,10 +19,10 @@ type Schema struct {
 
 func (s *Schema) ValidateColumn(col Column) error {
 	if s.Nullable == false && col == nil {
-		return errors.Errorf("%s is not nullable", s.logDescriptor())
+		return errors.Errorf("%s is not nullable", s.errorDescriptor())
 	}
 	if col != nil && col.Type() != s.Type {
-		return errors.Errorf("%s unsupported value=[type=%s]", s.logDescriptor(), col.Type().String())
+		return errors.Errorf("%s unsupported value=[type=%s]", s.errorDescriptor(), col.Type().String())
 	}
 	return nil
 }
@@ -89,7 +89,7 @@ func (s *Schema) ColumnBytes(col Column) ([]byte, error) {
 		var err error
 		payload, err = col.Bytes(s.Size)
 		if err != nil {
-			return nil, errors.Wrapf(err, "%s could not get column bytes", s.logDescriptor())
+			return nil, errors.Wrapf(err, "%s could not get column bytes", s.errorDescriptor())
 		}
 	}
 	return s.pack(payload), nil
@@ -98,7 +98,7 @@ func (s *Schema) ColumnBytes(col Column) ([]byte, error) {
 func (s *Schema) Column(processor Processor, payload []byte) (Column, error) {
 	typeProcessor, err := processor.TypeProcessor(s.Type)
 	if err != nil {
-		return nil, errors.Wrapf(err, "%s could not load type processor", s.logDescriptor())
+		return nil, errors.Wrapf(err, "%s could not load type processor", s.errorDescriptor())
 	}
 
 	payload = s.unpack(payload)
@@ -107,12 +107,12 @@ func (s *Schema) Column(processor Processor, payload []byte) (Column, error) {
 	}
 
 	if !s.Nullable && payload == nil {
-		return nil, errors.Errorf("%s corrupted data", s.logDescriptor())
+		return nil, errors.Errorf("%s corrupted data", s.errorDescriptor())
 	}
 
 	res, err := typeProcessor.Load(s.Size, payload)
 	if err != nil {
-		return nil, errors.Wrapf(err, "%s could not load column", s.logDescriptor())
+		return nil, errors.Wrapf(err, "%s could not load column", s.errorDescriptor())
 	}
 
 	return res, nil
@@ -143,16 +143,16 @@ func (s *Schema) unpack(payload []byte) []byte {
 	return payload[1:]
 }
 
-func (s *Schema) logDescriptor() string {
+func (s *Schema) errorDescriptor() string {
 	return fmt.Sprintf("(column=[name=%s, type=%s])", s.Name, s.Type.Format(s.Size))
 }
 
 func (s *Schema) validate() error {
 	if s.Name == "" {
-		return errors.Errorf("%s name cannot be empty", s.logDescriptor())
+		return errors.Errorf("%s name cannot be empty", s.errorDescriptor())
 	}
 	if s.Type.Empty() {
-		return errors.Errorf("%s type cannot be empty", s.logDescriptor())
+		return errors.Errorf("%s type cannot be empty", s.errorDescriptor())
 	}
 	return nil
 }

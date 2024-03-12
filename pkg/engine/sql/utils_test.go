@@ -18,18 +18,14 @@ func (t *tokensMock) Pop() *tokenizer.Token {
 	return t.Called().Get(0).(*tokenizer.Token)
 }
 
-func (t *tokensMock) PopIf(tokenTypes ...tokenizer.TokenType) *tokenizer.Token {
-	return t.Called(tokenTypes).Get(0).(*tokenizer.Token)
+func (t *tokensMock) PopIf(conditions ...tokenizer.Cond) *tokenizer.Token {
+	return t.Called(conditions).Get(0).(*tokenizer.Token)
 }
 
 func (t *tokensMock) Next() *tokenizer.Token {
 	return t.Called().Get(0).(*tokenizer.Token)
 }
 
-func (t *tokensMock) NextIf(tokenTypes ...tokenizer.TokenType) *tokenizer.Token {
-	return t.Called(tokenTypes).Get(0).(*tokenizer.Token)
-}
-
-func (t *tokensMock) AreNextInOrder(tokenTypes ...tokenizer.TokenType) bool {
-	return t.Called(tokenTypes).Bool(0)
+func (t *tokensMock) NextIf(conditions ...tokenizer.Cond) *tokenizer.Token {
+	return t.Called(conditions).Get(0).(*tokenizer.Token)
 }

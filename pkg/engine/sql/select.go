@@ -31,7 +31,7 @@ type selectParser struct {
 }
 
 func (s *selectParser) Is(tokens tokenizer.Tokens) bool {
-	return tokens.PopIf(tokenizer.TokenSelect) != nil
+	return tokens.PopIf(tokenizer.CondGroup(tokenizer.IsType(tokenizer.TokenKeyword), tokenizer.Is("SELECT", false))) != nil
 }
 
 func (s *selectParser) Parse(tokens tokenizer.Tokens) (parser.Statement, error) {
@@ -66,9 +66,8 @@ func (s *selectParser) Parse(tokens tokenizer.Tokens) (parser.Statement, error) 
 }
 
 func (s *selectParser) parseFrom(tokens tokenizer.Tokens) (*parser.Table, error) {
-	token := tokens.PopIf(tokenizer.TokenFrom)
-	if token == nil {
-		return nil, errors.Errorf("expected FROM got (%s)", tokens.Next().Value)
+	if tokens.PopIf(tokenizer.CondGroup(tokenizer.IsType(tokenizer.TokenKeyword), tokenizer.Is("FROM", false))) == nil {
+		return nil, errors.Errorf("expected `FROM` got (%s)", tokens.Next().Value)
 	}
 
 	return parseTable(tokens)

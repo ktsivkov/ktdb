@@ -1,7 +1,7 @@
 package tokenizer
 
 import (
-	"slices"
+	"strings"
 )
 
 type Token struct {
@@ -9,25 +9,23 @@ type Token struct {
 	Value string
 }
 
+func (t *Token) Is(val string, caseSensitive bool) bool {
+	if caseSensitive {
+		return t.Value == val
+	}
+	return strings.ToUpper(t.Value) == strings.ToUpper(val)
+}
+
 type Tokens interface {
 	HasNext() bool
 	Pop() *Token
-	PopIf(tokenTypes ...TokenType) *Token
+	PopIf(conditions ...Cond) *Token
 	// Next will return the next element without removing it from the stack
 	// if you want to remove it from the stack upon returning, look at the Pop method
 	Next() *Token
-	// NextIf will return the next element only if it is one of the provided types without removing it from the stack
+	// NextIf will return the next element only if it satisfies one of the conditions
 	// if you want to remove it from the stack upon returning, look at the PopIf method
-	NextIf(tokenTypes ...TokenType) *Token
-	// AreNextInOrder returns if the next elements in the stack are the same types as provided in order
-	AreNextInOrder(tokenTypes ...TokenType) bool
-}
-
-func newTokens(elems []*Token) Tokens {
-	return &tokens{
-		stack: elems,
-		len:   len(elems),
-	}
+	NextIf(conditions ...Cond) *Token
 }
 
 type tokens struct {
@@ -40,21 +38,18 @@ func (t *tokens) HasNext() bool {
 }
 
 func (t *tokens) Pop() *Token {
-	if !t.HasNext() {
+	elem := t.Next()
+	if elem == nil {
 		return nil
 	}
-	elem := t.stack[0]
 	t.stack = t.stack[1:]
 	t.len = t.len - 1
 	return elem
 }
 
-func (t *tokens) PopIf(tokenTypes ...TokenType) *Token {
-	if !t.HasNext() {
-		return nil
-	}
-	elem := t.stack[0]
-	if !slices.Contains(tokenTypes, elem.Type) {
+func (t *tokens) PopIf(conditions ...Cond) *Token {
+	elem := t.NextIf(conditions...)
+	if elem == nil {
 		return nil
 	}
 	t.stack = t.stack[1:]
@@ -69,25 +64,15 @@ func (t *tokens) Next() *Token {
 	return t.stack[0]
 }
 
-func (t *tokens) NextIf(tokenTypes ...TokenType) *Token {
+func (t *tokens) NextIf(conditions ...Cond) *Token {
 	if !t.HasNext() {
 		return nil
 	}
-	if elem := t.stack[0]; slices.Contains(tokenTypes, elem.Type) {
-		return elem
-	}
-	return nil
-}
-
-func (t *tokens) AreNextInOrder(tokenTypes ...TokenType) bool {
-	if len(tokenTypes) > t.len {
-		return false
-	}
-
-	for i, tokenType := range tokenTypes {
-		if t.stack[i].Type != tokenType {
-			return false
+	elem := t.stack[0]
+	for _, cond := range conditions {
+		if cond(elem) {
+			return elem
 		}
 	}
-	return true
+	return nil
 }

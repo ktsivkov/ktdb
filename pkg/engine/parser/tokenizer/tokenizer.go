@@ -6,36 +6,20 @@ import (
 
 type TokenType = tokenizer.TokenKey
 
-const ( // Allies for default Tokenizer tokens
+const (
+	/*
+	 * Allies for default Tokenizer tokens
+	 */
 	TokenUnknown            TokenType = tokenizer.TokenUnknown        //unspecified token key.
 	TokenKeyword            TokenType = tokenizer.TokenKeyword        //keyword, any combination of letters, including unicode letters.
 	TokenInt                TokenType = tokenizer.TokenInteger        //integer value
 	TokenFloat              TokenType = tokenizer.TokenFloat          //float/double value
 	TokenDoubleQuotedString TokenType = tokenizer.TokenString         //quoted string
 	TokenStringFragment     TokenType = tokenizer.TokenStringFragment //fragment framed (quoted) string
-)
-
-const (
-	/*
-	 * Query Statements
-	 */
-	TokenSelect TokenType = iota + 1
-	TokenInsert
-	TokenUpdate
-	TokenDelete
-	/*
-	 * Clauses
-	 */
-	TokenAs
-	TokenFrom
-	TokenWhere
-	TokenOrderBy
-	TokenIn
-	TokenValues
 	/*
 	 * Other tokens
 	 */
-	TokenAsterisk
+	TokenAsterisk TokenType = iota + 1
 	TokenPlus
 	TokenDash
 	TokenSlash
@@ -54,19 +38,11 @@ const (
 	TokenLt
 	TokenGte
 	TokenLte
-	/**
-	 * Conditions
-	 */
-	TokenAnd
-	TokenOr
 	/*
-	 * Default types
+	 * Default token types
 	 */
 	TokenSingleQuotedString
 	TokenLiteralString
-	TokenDateParser
-	TokenIntParser
-	TokenFloatParser
 )
 
 type SqlTokenizer interface {
@@ -75,31 +51,19 @@ type SqlTokenizer interface {
 
 func NewSqlTokenizer() SqlTokenizer {
 	t := tokenizer.New()
-	t.StopOnUndefinedToken() // TODO: maybe use tokenizer.TokenUndef to cut comments
-	t.AllowKeywordSymbols(tokenizer.Underscore, append(tokenizer.Numbers, '.'))
-	// Query Identifiers
-	t.DefineTokens(TokenSelect, []string{"SELECT"})
-	t.DefineTokens(TokenInsert, []string{"INSERT INTO"})
-	t.DefineTokens(TokenUpdate, []string{"UPDATE"})
-	t.DefineTokens(TokenDelete, []string{"DELETE"})
-	// Clauses
-	//t.DefineTokens(TokenAs, []string{"AS"})
-	t.DefineTokens(TokenFrom, []string{"FROM"})
-	t.DefineTokens(TokenWhere, []string{"WHERE"})
-	t.DefineTokens(TokenOrderBy, []string{"ORDER BY"})
-	//t.DefineTokens(TokenIn, []string{"IN"})
-	t.DefineTokens(TokenValues, []string{"VALUES"})
+	t.StopOnUndefinedToken()                                                    // TODO: maybe use tokenizer.TokenUndef to cut comments
+	t.AllowKeywordSymbols(tokenizer.Underscore, append(tokenizer.Numbers, '.')) // TODO: maybe set the dot as a separate token?
 	// Other tokens
 	t.DefineTokens(TokenAsterisk, []string{"*"})
-	//t.DefineTokens(TokenPlus, []string{"+"})
-	//t.DefineTokens(TokenDash, []string{"-"})
-	//t.DefineTokens(TokenSlash, []string{"/"})
-	//t.DefineTokens(TokenPercentage, []string{"%"})
+	t.DefineTokens(TokenPlus, []string{"+"})
+	t.DefineTokens(TokenDash, []string{"-"})
+	t.DefineTokens(TokenSlash, []string{"/"})
+	t.DefineTokens(TokenPercentage, []string{"%"})
 	t.DefineTokens(TokenComma, []string{","})
 	t.DefineTokens(TokenExprOpen, []string{"("})
 	t.DefineTokens(TokenExprClose, []string{")"})
-	//t.DefineTokens(TokenStmtEnd, []string{";"})
-	//t.DefineTokens(TokenComment, []string{"--"})
+	t.DefineTokens(TokenStmtEnd, []string{";"})
+	t.DefineTokens(TokenComment, []string{"--"})
 	// Comparisons
 	t.DefineTokens(TokenEq, []string{"="})
 	t.DefineTokens(TokenNotEq, []string{"!="})
@@ -107,16 +71,10 @@ func NewSqlTokenizer() SqlTokenizer {
 	t.DefineTokens(TokenLt, []string{"<"})
 	t.DefineTokens(TokenGte, []string{">="})
 	t.DefineTokens(TokenLte, []string{"<="})
-	// Conditions
-	t.DefineTokens(TokenAnd, []string{"AND"})
-	t.DefineTokens(TokenOr, []string{"OR"})
 	// Default Types
 	t.DefineStringToken(TokenDoubleQuotedString, "\"", "\"").SetEscapeSymbol(tokenizer.BackSlash)
 	t.DefineStringToken(TokenSingleQuotedString, "'", "'").SetEscapeSymbol(tokenizer.BackSlash)
 	t.DefineStringToken(TokenLiteralString, "`", "`").SetEscapeSymbol(tokenizer.BackSlash)
-	//t.DefineTokens(TokenDateParser, []string{"DATE"})
-	//t.DefineTokens(TokenIntParser, []string{"INT"})
-	//t.DefineTokens(TokenFloatParser, []string{"FLOAT"})
 	return &sqlTokenizer{t}
 }
 
@@ -128,15 +86,18 @@ func (q *sqlTokenizer) Parse(query string) Tokens {
 	stream := q.ParseString(query)
 	defer stream.Close()
 
-	tokens := make([]*Token, 0)
+	stack := make([]*Token, 0)
 	for stream.IsValid() {
 		ct := stream.CurrentToken()
-		tokens = append(tokens, &Token{
+		stack = append(stack, &Token{
 			Type:  ct.Key(),
 			Value: ct.ValueString(),
 		})
 		stream.GoNext()
 	}
 
-	return newTokens(tokens)
+	return &tokens{
+		stack: stack,
+		len:   len(stack),
+	}
 }

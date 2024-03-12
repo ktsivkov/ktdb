@@ -5,8 +5,8 @@ import (
 )
 
 type Token struct {
-	Type  TokenType
 	Value string
+	Type  TokenType
 }
 
 func (t *Token) Is(val string, caseSensitive bool) bool {

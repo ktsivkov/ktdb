@@ -19,8 +19,8 @@ type Schema interface {
 }
 
 type schema struct {
-	name    string
 	storage storage.Storage
+	name    string
 }
 
 func (s *schema) Name() string {

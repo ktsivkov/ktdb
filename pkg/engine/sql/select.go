@@ -14,9 +14,9 @@ func NewSelectParser() parser.StatementParser {
 }
 
 type selectStatement struct {
-	Columns []*parser.Column
 	Table   *parser.Table
 	Where   *WhereClause
+	Columns []*parser.Column
 }
 
 func (s *selectStatement) Json() (string, error) {

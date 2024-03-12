@@ -23,8 +23,8 @@ type Parser interface {
 }
 
 type sqlParser struct {
-	stmtParsers  []StatementParser
 	sqlTokenizer tokenizer.SqlTokenizer
+	stmtParsers  []StatementParser
 }
 
 func (p *sqlParser) Parse(query string) (Statement, error) {

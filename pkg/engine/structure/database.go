@@ -15,8 +15,8 @@ type Database interface {
 }
 
 type database struct {
-	name    string
 	storage storage.Storage
+	name    string
 }
 
 func (d *database) Name() string {

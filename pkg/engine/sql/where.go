@@ -25,8 +25,8 @@ const (
 
 type WhereCondition struct {
 	Target    string
-	Operation tokenizer.TokenType
 	Value     string
+	Operation tokenizer.TokenType
 }
 
 type WhereClause struct {
